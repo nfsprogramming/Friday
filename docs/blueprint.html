@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F.R.I.D.A.Y — Local AI Blueprint</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --arc: #00d4ff;
+    --arc-dim: #0090b3;
+    --arc-glow: rgba(0,212,255,0.15);
+    --danger: #ff4444;
+    --warn: #ffaa00;
+    --ok: #00ff88;
+    --bg: #030d14;
+    --bg2: #060f1a;
+    --bg3: #091524;
+    --panel: rgba(0,212,255,0.04);
+    --border: rgba(0,212,255,0.15);
+    --text: #c8e8f0;
+    --text-dim: #5a8a9a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* Scanline effect */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* Corner decoration */
+  .corner-tl, .corner-tr, .corner-bl, .corner-br {
+    position: fixed;
+    width: 40px; height: 40px;
+    z-index: 999;
+  }
+  .corner-tl { top: 12px; left: 12px; border-top: 1px solid var(--arc); border-left: 1px solid var(--arc); }
+  .corner-tr { top: 12px; right: 12px; border-top: 1px solid var(--arc); border-right: 1px solid var(--arc); }
+  .corner-bl { bottom: 12px; left: 12px; border-bottom: 1px solid var(--arc); border-left: 1px solid var(--arc); }
+  .corner-br { bottom: 12px; right: 12px; border-bottom: 1px solid var(--arc); border-right: 1px solid var(--arc); }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+  /* HEADER */
+  header {
+    padding: 60px 0 40px;
+    text-align: center;
+    position: relative;
+  }
+  .header-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--arc);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: block;
+  }
+  h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(28px, 6vw, 56px);
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 6px;
+    text-shadow: 0 0 40px rgba(0,212,255,0.4), 0 0 80px rgba(0,212,255,0.15);
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+  }
+  .arc-reactor {
+    width: 60px; height: 60px;
+    margin: 24px auto 0;
+    border-radius: 50%;
+    border: 2px solid var(--arc);
+    box-shadow: 0 0 20px var(--arc), inset 0 0 20px rgba(0,212,255,0.1);
+    display: flex; align-items: center; justify-content: center;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .arc-reactor::before {
+    content: '';
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,212,255,0.8) 0%, rgba(0,212,255,0.1) 70%);
+    box-shadow: 0 0 12px var(--arc);
+    animation: pulse 2s ease-in-out infinite reverse;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  /* SECTION */
+  section { margin: 48px 0; }
+  .section-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-num {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--arc);
+    background: var(--arc-glow);
+    border: 1px solid var(--arc);
+    padding: 2px 8px;
+    letter-spacing: 2px;
+  }
+  h2 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  h3 {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--arc);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  /* GRID */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  }
+
+  /* PANEL */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 20px;
+    position: relative;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .panel:hover {
+    border-color: rgba(0,212,255,0.35);
+    box-shadow: 0 0 20px rgba(0,212,255,0.06);
+  }
+  .panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--arc);
+    opacity: 0.4;
+  }
+
+  /* DECISION TABLE */
+  .decision-table { width: 100%; border-collapse: collapse; }
+  .decision-table th {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--arc);
+    letter-spacing: 2px;
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,212,255,0.04);
+  }
+  .decision-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(0,212,255,0.06);
+    font-size: 14px;
+    vertical-align: top;
+  }
+  .decision-table tr:last-child td { border-bottom: none; }
+  .badge {
+    display: inline-block;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    padding: 2px 7px;
+    border: 1px solid;
+    letter-spacing: 1px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .badge-ok { color: var(--ok); border-color: var(--ok); background: rgba(0,255,136,0.06); }
+  .badge-warn { color: var(--warn); border-color: var(--warn); background: rgba(255,170,0,0.06); }
+  .badge-x { color: var(--danger); border-color: var(--danger); background: rgba(255,68,68,0.06); }
+  .badge-arc { color: var(--arc); border-color: var(--arc); background: rgba(0,212,255,0.06); }
+
+  /* CODE BLOCK */
+  .code-block {
+    background: #020a10;
+    border: 1px solid rgba(0,212,255,0.12);
+    padding: 16px 20px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    line-height: 1.8;
+    overflow-x: auto;
+    position: relative;
+  }
+  .code-block::before {
+    content: attr(data-lang);
+    position: absolute;
+    top: 8px; right: 12px;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .c-cyan { color: #00d4ff; }
+  .c-green { color: #00ff88; }
+  .c-yellow { color: #ffaa00; }
+  .c-gray { color: #5a8a9a; }
+  .c-white { color: #e0f0f8; }
+  .c-red { color: #ff6666; }
+  .c-purple { color: #c084fc; }
+
+  /* PIPELINE */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+    margin: 16px 0;
+  }
+  .pipe-node {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+  .pipe-node.active {
+    border-color: var(--arc);
+    color: var(--arc);
+    background: rgba(0,212,255,0.06);
+  }
+  .pipe-arrow {
+    color: var(--arc-dim);
+    font-size: 14px;
+    padding: 0 4px;
+    flex-shrink: 0;
+  }
+
+  /* TAG ROW */
+  .tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .tag {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    padding: 3px 10px;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+  .tag.highlight { border-color: var(--arc); color: var(--arc); background: rgba(0,212,255,0.05); }
+
+  /* PHASE CARD */
+  .phase-card {
+    border: 1px solid var(--border);
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .phase-header {
+    background: var(--bg3);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+  }
+  .phase-num {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--arc);
+    opacity: 0.5;
+    min-width: 36px;
+  }
+  .phase-title { font-size: 16px; font-weight: 700; letter-spacing: 2px; color: #fff; }
+  .phase-meta { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text-dim); letter-spacing: 1px; margin-top: 2px; }
+  .phase-body { padding: 20px; border-top: 1px solid var(--border); }
+
+  .step-list { list-style: none; }
+  .step-list li {
+    padding: 6px 0 6px 20px;
+    position: relative;
+    font-size: 14px;
+    border-bottom: 1px solid rgba(0,212,255,0.04);
+  }
+  .step-list li:last-child { border-bottom: none; }
+  .step-list li::before {
+    content: '▸';
+    position: absolute; left: 0;
+    color: var(--arc);
+    font-size: 10px;
+    top: 8px;
+  }
+  .step-list li span { color: var(--arc); font-weight: 600; }
+
+  /* NOTE BOX */
+  .note {
+    border-left: 3px solid;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-size: 13px;
+    font-family: 'Share Tech Mono', monospace;
+    line-height: 1.7;
+  }
+  .note-info { border-color: var(--arc); background: rgba(0,212,255,0.04); color: var(--text); }
+  .note-warn { border-color: var(--warn); background: rgba(255,170,0,0.04); color: var(--text); }
+  .note-ok { border-color: var(--ok); background: rgba(0,255,136,0.04); color: var(--text); }
+
+  /* ARCH DIAGRAM */
+  .arch {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    line-height: 2;
+    color: var(--text);
+    padding: 24px;
+    background: #020a10;
+    border: 1px solid var(--border);
+  }
+
+  /* FOOTER */
+  footer {
+    margin-top: 80px;
+    padding: 32px 0;
+    text-align: center;
+    border-top: 1px solid var(--border);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+  }
+
+  /* STAT BAR */
+  .stat-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 6px 0;
+    font-size: 13px;
+  }
+  .stat-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    min-width: 90px;
+    letter-spacing: 1px;
+  }
+  .bar-track {
+    flex: 1;
+    height: 4px;
+    background: rgba(0,212,255,0.1);
+    position: relative;
+  }
+  .bar-fill {
+    position: absolute;
+    top: 0; left: 0; height: 100%;
+    background: var(--arc);
+    transition: width 1s ease;
+  }
+  .bar-fill.warn { background: var(--warn); }
+  .bar-fill.ok { background: var(--ok); }
+  .stat-val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--arc);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  /* DIVIDER */
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--arc), transparent);
+    margin: 40px 0;
+    opacity: 0.3;
+  }
+</style>
+</head>
+<body>
+
+<div class="corner-tl"></div>
+<div class="corner-tr"></div>
+<div class="corner-bl"></div>
+<div class="corner-br"></div>
+
+<div class="container">
+
+  <header>
+    <span class="header-badge">// CLASSIFIED — STARK INDUSTRIES R&D //</span>
+    <h1>F.R.I.D.A.Y</h1>
+    <div class="subtitle">Fully Responsive Intelligent Digital Assistant for You — Local Build Blueprint</div>
+    <div class="arc-reactor"></div>
+  </header>
+
+  <!-- SECTION 0: HARDWARE ASSESSMENT -->
+  <section>
+    <div class="section-header">
+      <span class="section-num">SYS-00</span>
+      <h2>Hardware Assessment</h2>
+    </div>
+    <div class="panel" style="margin-bottom:16px;">
+      <h3>Your Machine — Acer Predator PHN16-72</h3>
+      <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">Running local AI is hardware-bound. Here's what you can realistically do.</p>
+
+      <div class="stat-bar">
+        <span class="stat-label">RTX 4050</span>
+        <div class="bar-track"><div class="bar-fill ok" style="width:72%"></div></div>
+        <span class="stat-val">6 GB</span>
+      </div>
+      <div class="stat-bar">
+        <span class="stat-label">i7-14700HX</span>
+        <div class="bar-track"><div class="bar-fill ok" style="width:90%"></div></div>
+        <span class="stat-val">20C</span>
+      </div>
+      <div class="stat-bar">
+        <span class="stat-label">VRAM Budget</span>
+        <div class="bar-track"><div class="bar-fill warn" style="width:68%"></div></div>
+        <span class="stat-val">~5.5G</span>
+      </div>
+
+      <div class="note note-warn" style="margin-top:16px;">
+        ⚠ 6 GB VRAM is the real constraint. This rules out 13B+ models at full precision. You'll run quantized models (Q4/Q5). Accept this early — it's not a limitation, it's a design constraint.
+      </div>
+    </div>
+
+    <table class="decision-table" style="border:1px solid var(--border);">
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>What's Possible</th>
+          <th>What's NOT</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>LLM</td>
+          <td>Qwen2.5-7B-Q4, Llama3.2-3B, Gemma2-9B-Q4 <span class="badge badge-ok">YES</span></td>
+          <td>70B, unquantized 13B+ <span class="badge badge-x">NO</span></td>
+        </tr>
+        <tr>
+          <td>STT (Whisper)</td>
+          <td>whisper-base, small, medium <span class="badge badge-ok">FAST</span></td>
+          <td>whisper-large-v3 in realtime <span class="badge badge-warn">SLOW</span></td>
+        </tr>
+        <tr>
+          <td>TTS (Piper)</td>
+          <td>All Piper voices <span class="badge badge-ok">YES</span></td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Vision</td>
+          <td>moondream2 (1.8B), LLaVA-1.5-7B-Q4 <span class="badge badge-ok">GOOD</span></td>
+          <td>LLaVA-34B <span class="badge badge-x">NO</span></td>
+        </tr>
+        <tr>
+          <td>Embeddings</td>
+          <td>nomic-embed-text, all-minilm <span class="badge badge-ok">FAST</span></td>
+          <td>—</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- SECTION 1: TECH DECISIONS -->
+  <section>
+    <div class="section-header">
+      <span class="section-num">SYS-01</span>
+      <h2>Technology Stack — Final Decisions</h2>
+    </div>
+    <p style="color:var(--text-dim);font-size:13px;margin-bottom:20px;">Not "consider these options." These are the picks, with reasoning.</p>
+
+    <table class="decision-table" style="border:1px solid var(--border);">
+      <thead>
+        <tr>
+          <th>Layer</th>
+          <th>Choice</th>
+          <th>Why — Not Alternatives</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>LLM</strong></td>
+          <td>Qwen2.5-7B-Instruct Q4_K_M via Ollama <span class="badge badge-ok">CHOSEN</span></td>
+          <td>Best tool-calling + coding at 7B. Fits in 5.5 GB VRAM. Llama3.2 is weaker at instructions. Gemma2 has no function calling. Future upgrade path: Qwen3-8B → DeepSeek → Llama.</td>
+        </tr>
+        <tr>
+          <td><strong>STT</strong></td>
+          <td>faster-whisper — start tiny, upgrade to medium <span class="badge badge-ok">CHOSEN</span></td>
+          <td>Start with whisper-tiny for MVP (lowest latency, lowest RAM). Upgrade path: base → small → medium as you tune. CTranslate2 backend is 4× faster than original Whisper regardless of model size.</td>
+        </tr>
+        <tr>
+          <td><strong>TTS</strong></td>
+          <td>Piper TTS — en_US-ryan-high <span class="badge badge-ok">CHOSEN</span></td>
+          <td>Fastest local TTS. Ryan voice is the closest to a composed assistant voice. Under 100ms latency. Kokoro is good but heavier.</td>
+        </tr>
+        <tr>
+          <td><strong>Backend</strong></td>
+          <td>Python 3.11 + FastAPI <span class="badge badge-ok">CHOSEN</span></td>
+          <td>Async WebSocket support. Best AI ecosystem. FastAPI over Flask for streaming responses. Config via YAML + .env (easy to edit, environment-separated).</td>
+        </tr>
+        <tr>
+          <td><strong>Desktop UI</strong></td>
+          <td>Tauri v2 + React <span class="badge badge-ok">CHOSEN</span></td>
+          <td>You already know Tauri. Native OS access for automation. Rust sidecar for Piper. No Electron bloat. Build UI last — terminal brain first.</td>
+        </tr>
+        <tr>
+          <td><strong>Mobile</strong></td>
+          <td>Flutter (same as SpotiFLAC) <span class="badge badge-ok">CHOSEN</span></td>
+          <td>You already have Flutter setup. Same WebSocket client as desktop. Cross-platform single codebase.</td>
+        </tr>
+        <tr>
+          <td><strong>Memory DB</strong></td>
+          <td>SQLite + ChromaDB <span class="badge badge-ok">CHOSEN</span></td>
+          <td>SQLite for structured facts/prefs/tasks/logs. ChromaDB for semantic memory search. Both embedded, zero infra. Future: PostgreSQL only if multi-device sync needed.</td>
+        </tr>
+        <tr>
+          <td><strong>Embeddings</strong></td>
+          <td>Sentence Transformers — all-MiniLM-L6-v2 <span class="badge badge-ok">CHOSEN</span></td>
+          <td>Powers ChromaDB semantic search. Fast, lightweight, runs entirely on CPU. Future models: BGE, E5, nomic-embed.</td>
+        </tr>
+        <tr>
+          <td><strong>Wake Word</strong></td>
+          <td>OpenWakeWord — "hey friday" model <span class="badge badge-ok">CHOSEN</span></td>
+          <td>Runs on CPU at &lt;1% usage. More accurate than porcupine free tier. Custom model trainable for "Hey Friday" specifically.</td>
+        </tr>
+        <tr>
+          <td><strong>Desktop Automation</strong></td>
+          <td>PyAutoGUI → pywinauto (upgrade path) <span class="badge badge-ok">CHOSEN</span></td>
+          <td>PyAutoGUI for MVP (mouse, keyboard, window interactions). Upgrade to pywinauto + Win32 API for reliable production control. psutil for system metrics throughout.</td>
+        </tr>
+        <tr>
+          <td><strong>Browser Automation</strong></td>
+          <td>Playwright <span class="badge badge-ok">CHOSEN</span></td>
+          <td>Modern, stable, fast. Chromium + Firefox + Edge support. Selenium rejected — slower, more maintenance overhead.</td>
+        </tr>
+        <tr>
+          <td><strong>Vision</strong></td>
+          <td>OpenCV + EasyOCR + moondream2 <span class="badge badge-ok">CHOSEN</span></td>
+          <td>OpenCV for screenshot processing + image analysis. EasyOCR for text extraction from screen. moondream2 (1.8B via Ollama) for natural language screen Q&A. Split by task — don't use moondream2 for pure OCR, it's slower than EasyOCR.</td>
+        </tr>
+        <tr>
+          <td><strong>Scheduler</strong></td>
+          <td>APScheduler <span class="badge badge-ok">CHOSEN</span></td>
+          <td>Handles reminders, recurring tasks, background jobs, and workflow execution. Embedded Python — no separate process needed.</td>
+        </tr>
+        <tr>
+          <td><strong>Tool System</strong></td>
+          <td>Custom JSON tool calling (Ollama format) + Permission layer <span class="badge badge-ok">CHOSEN</span></td>
+          <td>Ollama supports OpenAI-compatible tool calling natively with Qwen2.5. Every action gets a risk level: SAFE (auto-execute) / WARNING (confirm) / DANGEROUS (explicit approval). No LangChain — direct is faster and you understand it.</td>
+        </tr>
+        <tr>
+          <td><strong>Plugin System</strong></td>
+          <td>Custom Python Plugin Architecture <span class="badge badge-ok">FUTURE v2.0</span></td>
+          <td>Dynamic loading, hot reloading, permission isolation. Build after core is solid. Goal: plugin marketplace support.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="note note-info" style="margin-top:16px;">
+      ℹ NO LangChain. NO LlamaIndex. NO cloud APIs. These abstractions add latency and hide what's happening. Build direct — you'll understand it and it'll be faster.
+    </div>
+  </section>
+
+  <!-- SECTION 2: ARCHITECTURE -->
+  <section>
+    <div class="section-header">
+      <span class="section-num">SYS-02</span>
+      <h2>Full System Architecture</h2>
+    </div>
+
+    <div class="arch">
+<span class="c-cyan">┌─────────────────────────────────────────────────────────────┐</span>
+<span class="c-cyan">│</span>  <span class="c-yellow">FRIDAY SYSTEM ARCHITECTURE v1.0</span>                             <span class="c-cyan">│</span>
+<span class="c-cyan">└─────────────────────────────────────────────────────────────┘</span>
+
+<span class="c-green">CLIENT LAYER</span>
+  ┌──────────────┐   ┌──────────────────┐
+  │  Tauri/React │   │  Flutter Mobile  │
+  │  Desktop UI  │   │  Android Companion│
+  └──────┬───────┘   └────────┬─────────┘
+         │                    │
+         └─────────┬──────────┘
+                   │ WebSocket (ws://localhost:8000)
+<span class="c-green">BACKEND CORE</span> (FastAPI)
+  ┌────────────────────────────────────────────┐
+  │                                            │
+  │  ┌───────────┐  ┌──────────────┐           │
+  │  │ Wake Word │  │ Audio Input  │           │
+  │  │ Detector  │──│ (microphone) │           │
+  │  │OpenWakeWrd│  └──────┬───────┘           │
+  │  └───────────┘         │                   │
+  │                  ┌─────▼──────┐            │
+  │                  │   faster   │            │
+  │                  │  -whisper  │ STT        │
+  │                  └─────┬──────┘            │
+  │                        │ text              │
+  │               ┌────────▼────────┐          │
+  │               │  INTENT ROUTER  │          │
+  │               │  (rule + LLM)   │          │
+  │               └────────┬────────┘          │
+  │         ┌──────────────┼──────────────┐    │
+  │         ▼              ▼              ▼    │
+  │   ┌──────────┐  ┌──────────┐  ┌──────────┐│
+  │   │DIRECT CMD│  │LLM+TOOLS │  │  VISION  ││
+  │   │(fast path│  │Qwen2.5-7B│  │moondream2││
+  │   │ no LLM)  │  │  Ollama  │  │          ││
+  │   └────┬─────┘  └─────┬────┘  └────┬─────┘│
+  │        └──────────────┼─────────────┘      │
+  │                  ┌────▼─────┐              │
+  │                  │  TOOL    │              │
+  │                  │ MANAGER  │              │
+  │                  └────┬─────┘              │
+  │     ┌──────────┬──────┼──────┬──────────┐  │
+  │     ▼          ▼      ▼      ▼          ▼  │
+  │  ┌──────┐ ┌──────┐ ┌─────┐ ┌──────┐ ┌────┐│
+  │  │ SYS  │ │FILES │ │ WEB │ │GAMES │ │MEMO││
+  │  │ MON  │ │MGMT  │ │SRCH │ │STEAM │ │ RY ││
+  │  └──────┘ └──────┘ └─────┘ └──────┘ └────┘│
+  │                        │                   │
+  │                  ┌─────▼──────┐            │
+  │                  │   PIPER    │ TTS        │
+  │                  │    TTS     │            │
+  │                  └─────┬──────┘            │
+  │                        │ audio             │
+  └────────────────────────┼───────────────────┘
+                           ▼
+                     <span class="c-cyan">🔊 Speaker</span>
+
+<span class="c-green">MEMORY LAYER</span>
+  ┌────────────────┐  ┌─────────────────┐
+  │    SQLite      │  │    ChromaDB     │
+  │  facts/prefs   │  │  semantic search│
+  │  tasks/history │  │  RAG knowledge  │
+  └────────────────┘  └─────────────────┘
+    </div>
+  </section>
+
+  <!-- SECTION 3: VOICE PIPELINE -->
+  <section>
+    <div class="section-header">
+      <span class="section-num">SYS-03</span>
+      <h2>Voice Pipeline — Real Latency Targets</h2>
+    </div>
+
+    <div class="panel">
+      <h3>Full Pipeline</h3>
+      <div class="pipeline">
+        <div class="pipe-node active">MIC INPUT</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">OpenWakeWord<br><span style="font-size:9px;color:var(--ok)">~5ms CPU</span></div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node active">TRIGGER</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">faster-whisper<br><span style="font-size:9px;color:var(--ok)">~300ms</span></div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">Intent Router<br><span style="font-size:9px;color:var(--ok)">~10ms</span></div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">Qwen2.5-7B<br><span style="font-size:9px;color:var(--warn)">stream tokens</span></div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node active">SENTENCE BUFFER</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">Piper TTS<br><span style="font-size:9px;color:var(--ok)">~80ms/chunk</span></div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node active">SPEAKER</div>
+      </div>
+      <div class="note note-ok" style="margin-top:12px;">
+        ✓ Total latency target: &lt;1.5s end-to-end for a spoken command to spoken response. Achievable on your RTX 4050.
+      </div>
+      <div class="note note-warn">
+        ⚡ OPTIMIZATION: For known commands (open Chrome, play music, what time is it) — skip the LLM entirely. Rule-based intent → direct execution → Piper TTS. Target: &lt;400ms for direct commands.
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:16px;">
+      <h3>⚡ Streaming TTS — The JARVIS Latency Trick</h3>
+      <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px;">Don't wait for the LLM to finish. Feed Piper sentence-by-sentence as tokens arrive. Friday starts speaking while still thinking. This cuts <em>perceived</em> latency by 40–60%.</p>
+
+      <div class="code-block" data-lang="PYTHON">
+<span class="c-purple">async def</span> <span class="c-cyan">stream_response_to_speech</span>(prompt: str):
+    sentence_buffer = <span class="c-green">""</span>
+    tts_queue = asyncio.Queue()
+
+    <span class="c-gray"># TTS worker runs in parallel — consumes sentences as they arrive</span>
+    <span class="c-purple">async def</span> <span class="c-cyan">tts_worker</span>():
+        <span class="c-purple">while True</span>:
+            sentence = <span class="c-purple">await</span> tts_queue.get()
+            <span class="c-purple">if</span> sentence <span class="c-purple">is None</span>: <span class="c-purple">break</span>
+            <span class="c-purple">await</span> piper_speak(sentence)  <span class="c-gray"># non-blocking audio</span>
+
+    asyncio.create_task(tts_worker())
+
+    <span class="c-gray"># Stream tokens from Ollama</span>
+    <span class="c-purple">async for</span> token <span class="c-purple">in</span> ollama_stream(prompt):
+        sentence_buffer += token
+        <span class="c-gray"># Flush on sentence boundary — don't wait for full response</span>
+        <span class="c-purple">if</span> sentence_buffer.endswith((<span class="c-green">"."</span>, <span class="c-green">"!"</span>, <span class="c-green">"?"</span>, <span class="c-green">","</span>)):
+            <span class="c-purple">await</span> tts_queue.put(sentence_buffer.strip())
+            sentence_buffer = <span class="c-green">""</span>
+
+    <span class="c-gray"># Flush remainder</span>
+    <span class="c-purple">if</span> sentence_buffer.strip():
+        <span class="c-purple">await</span> tts_queue.put(sentence_buffer.strip())
+    <span class="c-purple">await</span> tts_queue.put(<span class="c-purple">None</span>)  <span class="c-gray"># signal done</span>
+      </div>
+
+      <div class="note note-info" style="margin-top:12px;">
+        ℹ Flush on commas too — "Launching Chrome, Boss." feels instant vs waiting for the period. Tune the sentence_boundary tuple to your preference.
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 4: FOLDER STRUCTURE -->
+  <section>
+    <div class="section-header">
+      <span class="section-num">SYS-04</span>
+      <h2>Repository Structure</h2>
+    </div>
+    <div class="code-block" data-lang="STRUCTURE">
+<span class="c-cyan">FRIDAY/</span>
+<span class="c-gray">│</span>
+<span class="c-gray">├── README.md  ·  LICENSE  ·  .gitignore  ·  pyproject.toml  ·  config.yaml  ·  .env</span>
+<span class="c-gray">│</span>
+<span class="c-yellow">├── docs/</span>                        <span class="c-gray"># VISION.md · ARCHITECTURE.md · FEATURES.md · ROADMAP.md · API.md · SECURITY.md</span>
+<span class="c-gray">│</span>
+<span class="c-yellow">├── app/</span>
+<span class="c-gray">│   ├── main.py</span>                  <span class="c-gray"># FastAPI app entry + WebSocket hub</span>
+<span class="c-gray">│   │</span>
+<span class="c-cyan">│   ├── core/</span>                    <span class="c-gray"># Brain of FRIDAY</span>
+<span class="c-gray">│   │   ├── assistant.py</span>         <span class="c-gray"># Top-level orchestration loop</span>
+<span class="c-gray">│   │   ├── orchestrator.py</span>      <span class="c-gray"># Routes between direct cmd / LLM / vision paths</span>
+<span class="c-gray">│   │   ├── session_manager.py</span>   <span class="c-gray"># Active conversation state</span>
+<span class="c-gray">│   │   ├── context_manager.py</span>   <span class="c-gray"># Memory injection into prompts</span>
+<span class="c-gray">│   │   ├── intent_parser.py</span>     <span class="c-gray"># Regex + keyword fast-path routing</span>
+<span class="c-gray">│   │   └── task_planner.py</span>      <span class="c-gray"># Multi-step task decomposition (v0.4+)</span>
+<span class="c-gray">│   │</span>
+<span class="c-cyan">│   ├── llm/</span>                     <span class="c-gray"># Local AI model communication</span>
+<span class="c-gray">│   │   ├── ollama_client.py</span>     <span class="c-gray"># Async Ollama client + streaming</span>
+<span class="c-gray">│   │   ├── prompt_manager.py</span>    <span class="c-gray"># System prompts + FRIDAY personality</span>
+<span class="c-gray">│   │   ├── model_router.py</span>      <span class="c-gray"># Switch models dynamically (chat vs vision)</span>
+<span class="c-gray">│   │   └── response_generator.py</span><span class="c-gray"># Streaming token handler + sentence chunker</span>
+<span class="c-gray">│   │</span>
+<span class="c-cyan">│   ├── voice/</span>                   <span class="c-gray"># Speech recognition and synthesis</span>
+<span class="c-gray">│   │   ├── wakeword.py</span>          <span class="c-gray"># OpenWakeWord listener (CPU, always-on)</span>
+<span class="c-gray">│   │   ├── whisper_stt.py</span>       <span class="c-gray"># faster-whisper wrapper (tiny → medium)</span>
+<span class="c-gray">│   │   ├── piper_tts.py</span>         <span class="c-gray"># Piper wrapper + streaming sentence queue</span>
+<span class="c-gray">│   │   ├── microphone.py</span>        <span class="c-gray"># PyAudio capture</span>
+<span class="c-gray">│   │   └── audio_manager.py</span>     <span class="c-gray"># VAD, mode switching (wake/listen/speak)</span>
+<span class="c-gray">│   │</span>
+<span class="c-cyan">│   ├── memory/</span>                  <span class="c-gray"># Long-term and short-term memory</span>
+<span class="c-gray">│   │   ├── memory_manager.py</span>    <span class="c-gray"># Unified memory interface</span>
+<span class="c-gray">│   │   ├── conversation_memory.py</span><span class="c-gray"># Active session + history</span>
+<span class="c-gray">│   │   ├── knowledge_memory.py</span>  <span class="c-gray"># ChromaDB semantic store</span>
+<span class="c-gray">│   │   ├── preference_memory.py</span> <span class="c-gray"># SQLite user prefs + facts</span>
+<span class="c-gray">│   │   └── embeddings.py</span>        <span class="c-gray"># Sentence Transformers (all-MiniLM-L6)</span>
+<span class="c-gray">│   │</span>
+<span class="c-cyan">│   ├── tools/</span>                   <span class="c-gray"># Tool registration and execution</span>
+<span class="c-gray">│   │   ├── tool_manager.py</span>      <span class="c-gray"># Tool registry + discovery</span>
+<span class="c-gray">│   │   ├── registry.py</span>          <span class="c-gray"># All tools registered here</span>
+<span class="c-gray">│   │   ├── permissions.py</span>       <span class="c-gray"># SAFE / WARNING / DANGEROUS risk levels</span>
+<span class="c-gray">│   │   └── executor.py</span>          <span class="c-gray"># Executes tools + approval flow</span>
+<span class="c-gray">│   │</span>
+<span class="c-cyan">│   ├── automation/</span>              <span class="c-gray"># Desktop and browser control</span>
+<span class="c-gray">│   │   ├── desktop/</span>
+<span class="c-gray">│   │   │   ├── app_control.py</span>   <span class="c-gray"># open/close/restart apps (PyAutoGUI → pywinauto)</span>
+<span class="c-gray">│   │   │   ├── keyboard.py</span>      <span class="c-gray"># Typing, shortcuts, macros</span>
+<span class="c-gray">│   │   │   ├── mouse.py</span>         <span class="c-gray"># Click, drag, scroll</span>
+<span class="c-gray">│   │   │   ├── window_manager.py</span><span class="c-gray"># Switch, minimize, maximize windows</span>
+<span class="c-gray">│   │   │   └── system_control.py</span><span class="c-gray"># Volume, brightness, shutdown, sleep</span>
+<span class="c-gray">│   │   └── browser/</span>
+<span class="c-gray">│   │       ├── browser_control.py</span><span class="c-gray"># Tab management, navigation</span>
+<span class="c-gray">│   │       ├── web_search.py</span>    <span class="c-gray"># DuckDuckGo + Playwright search</span>
+<span class="c-gray">│   │       ├── scraper.py</span>       <span class="c-gray"># Data extraction</span>
+<span class="c-gray">│   │       └── playwright_driver.py</span><span class="c-gray"># Playwright browser instance</span>
+<span class="c-gray">│   │</span>
+<span class="c-cyan">│   ├── vision/</span>                  <span class="c-gray"># OCR and screen understanding</span>
+<span class="c-gray">│   │   ├── screenshot.py</span>        <span class="c-gray"># mss screen capture</span>
+<span class="c-gray">│   │   ├── ocr.py</span>               <span class="c-gray"># EasyOCR text extraction</span>
+<span class="c-gray">│   │   ├── image_analysis.py</span>    <span class="c-gray"># OpenCV processing</span>
+<span class="c-gray">│   │   └── screen_understanding.py</span><span class="c-gray"># moondream2 natural language Q&A</span>
+<span class="c-gray">│   │</span>
+<span class="c-cyan">│   ├── scheduler/</span>               <span class="c-gray"># Reminders and automation scheduling</span>
+<span class="c-gray">│   │   ├── reminders.py</span>         <span class="c-gray"># Time/date-based + recurring reminders</span>
+<span class="c-gray">│   │   ├── jobs.py</span>              <span class="c-gray"># Background jobs</span>
+<span class="c-gray">│   │   └── task_scheduler.py</span>    <span class="c-gray"># APScheduler wrapper</span>
+<span class="c-gray">│   │</span>
+<span class="c-cyan">│   ├── notifications/</span>
+<span class="c-gray">│   │   ├── desktop_notifications.py</span>
+<span class="c-gray">│   │   └── mobile_notifications.py</span>
+<span class="c-gray">│   │</span>
+<span class="c-cyan">│   ├── plugins/</span>                 <span class="c-gray"># Plugin framework (v2.0+)</span>
+<span class="c-gray">│   │   ├── plugin_manager.py</span>
+<span class="c-gray">│   │   ├── plugin_loader.py</span>     <span class="c-gray"># Dynamic loading + hot reload</span>
+<span class="c-gray">│   │   └── sdk/</span>                 <span class="c-gray"># Plugin developer kit</span>
+<span class="c-gray">│   │</span>
+<span class="c-cyan">│   ├── api/</span>                     <span class="c-gray"># Android + future web interface</span>
+<span class="c-gray">│   │   ├── server.py</span>
+<span class="c-gray">│   │   ├── routes/</span>
+<span class="c-gray">│   │   └── middleware/</span>
+<span class="c-gray">│   │</span>
+<span class="c-gray">│   └── utils/</span>
+<span class="c-gray">│       ├── logger.py</span>            <span class="c-gray"># app · error · actions · security logs</span>
+<span class="c-gray">│       ├── config.py</span>            <span class="c-gray"># YAML + .env loader</span>
+<span class="c-gray">│       ├── helpers.py</span>
+<span class="c-gray">│       └── constants.py</span>
+<span class="c-gray">│</span>
+<span class="c-yellow">├── data/</span>
+<span class="c-gray">│   ├── database/friday.db</span>       <span class="c-gray"># SQLite</span>
+<span class="c-gray">│   ├── memories/</span>                <span class="c-gray"># conversations · preferences · knowledge</span>
+<span class="c-gray">│   ├── embeddings/</span>              <span class="c-gray"># ChromaDB vector store</span>
+<span class="c-gray">│   ├── cache/</span>
+<span class="c-gray">│   └── backups/</span>
+<span class="c-gray">│</span>
+<span class="c-yellow">├── models/</span>
+<span class="c-gray">│   ├── whisper/</span>                 <span class="c-gray"># faster-whisper model files</span>
+<span class="c-gray">│   ├── piper/</span>                   <span class="c-gray"># en_US-ryan-high.onnx + config</span>
+<span class="c-gray">│   └── wakeword/</span>                <span class="c-gray"># OpenWakeWord model files</span>
+<span class="c-gray">│</span>
+<span class="c-yellow">├── logs/</span>                        <span class="c-gray"># app.log · errors.log · actions.log · security.log</span>
+<span class="c-yellow">├── tests/</span>                       <span class="c-gray"># test_memory · test_voice · test_tools · test_llm · test_automation</span>
+<span class="c-gray">│</span>
+<span class="c-yellow">├── frontend/</span>                    <span class="c-gray"># Tauri v2 + React desktop overlay (build in Phase 5)</span>
+<span class="c-gray">│   ├── src-tauri/</span>
+<span class="c-gray">│   └── src/</span>
+<span class="c-gray">│       ├── components/</span>
+<span class="c-gray">│       │   ├── HUD.tsx</span>         <span class="c-gray"># Iron Man-style HUD</span>
+<span class="c-gray">│       │   ├── VoiceWave.tsx</span>
+<span class="c-gray">│       │   └── SystemPanel.tsx</span>
+<span class="c-gray">│       └── hooks/useWebSocket.ts</span>
+<span class="c-gray">│</span>
+<span class="c-yellow">├── android/</span>                     <span class="c-gray"># Flutter companion app</span>
+<span class="c-gray">│   ├── lib/</span>
+<span class="c-gray">│   │   ├── services/ws_service.dart</span>
+<span class="c-gray">│   │   └── screens/chat_screen.dart</span>
+<span class="c-gray">│   └── pubspec.yaml</span>
+<span class="c-gray">│</span>
+<span class="c-yellow">├── plugins_store/</span>               <span class="c-gray"># calendar · email · notes · custom plugins</span>
+<span class="c-gray">│</span>
+<span class="c-yellow">└── future/</span>                      <span class="c-gray"># Experimental — don't touch until v1.0 is done</span>
+<span class="c-gray">    ├── agents/</span>                  <span class="c-gray"># coding · research · vision · automation agents</span>
+<span class="c-gray">    ├── rag/</span>                     <span class="c-gray"># PDF ingestion + local knowledge base</span>
+<span class="c-gray">    └── cloud_sync/</span>              <span class="c-gray"># Future multi-device (PostgreSQL)</span>
+    </div>
+  </section>
+
+  <!-- SECTION 5: BUILD PHASES -->
+  <section>
+    <div class="section-header">
+      <span class="section-num">SYS-05</span>
+      <h2>Versioned Roadmap — v0.1 to v3.0</h2>
+    </div>
+    <p style="color:var(--text-dim);font-size:13px;margin-bottom:8px;">Every version must be usable and testable. Build a working assistant first. Optimize later.</p>
+    <div class="note note-warn" style="margin-bottom:20px;">⚠ Rule: Do NOT touch the UI until the terminal brain (v0.1–v0.3) works perfectly. A beautiful interface on a broken backend is wasted time.</div>
+
+    <div class="phase-card">
+      <div class="phase-header">
+        <span class="phase-num" style="font-size:14px;opacity:1;">PHASE 0</span>
+        <div>
+          <div class="phase-title">ENVIRONMENT & PROJECT INIT</div>
+          <div class="phase-meta">WEEK 1 // BEFORE ANY CODE</div>
+        </div>
+      </div>
+      <div class="phase-body">
+        <ul class="step-list">
+          <li>Install <span>uv</span> → <span>uv init FRIDAY</span> → <span>uv add</span> all dependencies</li>
+          <li>Install Ollama → pull <span>qwen2.5:7b-instruct-q4_K_M</span> → verify inference speed + VRAM usage</li>
+          <li>Create full folder structure (as per SYS-04)</li>
+          <li>Set up <span>config.yaml</span> + <span>.env</span> for all settings</li>
+          <li>Set up <span>utils/logger.py</span> — app · error · actions · security log categories</li>
+          <li>Write <span>docs/VISION.md</span>, <span>ARCHITECTURE.md</span>, <span>FEATURES.md</span>, <span>ROADMAP.md</span></li>
+          <li>Initialize GitHub repository with .gitignore</li>
+        </ul>
+        <div class="note note-ok">✓ Outcome: Project officially initialized. Foundation is solid before first line of feature code.</div>
+      </div>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-header">
+        <span class="phase-num" style="font-size:14px;opacity:1;">v0.1</span>
+        <div>
+          <div class="phase-title">LOCAL CHAT ASSISTANT</div>
+          <div class="phase-meta">WEEK 1–2 // TERMINAL ONLY</div>
+        </div>
+      </div>
+      <div class="phase-body">
+        <ul class="step-list">
+          <li>Implement <span>llm/ollama_client.py</span> — async Ollama client with streaming</li>
+          <li>Implement <span>llm/prompt_manager.py</span> — FRIDAY personality system prompt baked in</li>
+          <li>CLI chat interface: type → stream response to terminal</li>
+          <li>Conversation history maintained in session (list of messages)</li>
+          <li>Basic logging via utils/logger.py</li>
+        </ul>
+        <div class="note note-ok">✓ Milestone: User can chat with FRIDAY completely offline via terminal. No voice yet.</div>
+      </div>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-header">
+        <span class="phase-num" style="font-size:14px;opacity:1;">v0.2</span>
+        <div>
+          <div class="phase-title">VOICE ASSISTANT</div>
+          <div class="phase-meta">WEEK 2–3 // FULL VOICE LOOP</div>
+        </div>
+      </div>
+      <div class="phase-body">
+        <ul class="step-list">
+          <li>Implement <span>voice/whisper_stt.py</span> — faster-whisper tiny (upgrade later)</li>
+          <li>Implement <span>voice/piper_tts.py</span> — Piper ryan-high + sentence-streaming queue</li>
+          <li>Implement <span>voice/audio_manager.py</span> — PyAudio capture + VAD (silero-vad)</li>
+          <li>Wire full loop: mic → STT → LLM stream → sentence buffer → Piper → speaker</li>
+          <li>Push-to-talk mode first; continuous mode after VAD is tuned</li>
+          <li><span>Streaming TTS</span>: flush to Piper on sentence boundaries — Friday speaks before LLM finishes</li>
+        </ul>
+        <div class="note note-ok">✓ Milestone: Speak → receive spoken reply. Full voice loop under 1.5s.</div>
+      </div>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-header">
+        <span class="phase-num" style="font-size:14px;opacity:1;">v0.3</span>
+        <div>
+          <div class="phase-title">WAKE WORD + MEMORY SYSTEM</div>
+          <div class="phase-meta">WEEK 3–4 // PERSISTENCE + AMBIENT</div>
+        </div>
+      </div>
+      <div class="phase-body">
+        <ul class="step-list">
+          <li>Implement <span>voice/wakeword.py</span> — OpenWakeWord on separate thread, CPU-only</li>
+          <li>On wake: switch audio_manager to listen mode → STT → pipeline → back to wake</li>
+          <li>Set up SQLite schema: <span>conversations</span>, <span>preferences</span>, <span>tasks</span>, <span>notes</span>, <span>memories</span>, <span>logs</span></li>
+          <li>Set up ChromaDB + Sentence Transformers (all-MiniLM-L6) for semantic search</li>
+          <li>Implement <span>core/context_manager.py</span> — inject top-3 relevant memories into every prompt</li>
+          <li>"Friday, remember my exam is June 20th" → stored. "What do you know about my exams?" → recalled.</li>
+        </ul>
+        <div class="note note-ok">✓ Milestone: Always-on wake word. Memory survives restarts. Friday knows your preferences.</div>
+      </div>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-header">
+        <span class="phase-num" style="font-size:14px;opacity:1;">v0.4</span>
+        <div>
+          <div class="phase-title">TOOL FRAMEWORK + PERMISSION SYSTEM</div>
+          <div class="phase-meta">WEEK 4–5 // ACTIONS + SAFETY</div>
+        </div>
+      </div>
+      <div class="phase-body">
+        <ul class="step-list">
+          <li>Implement <span>tools/tool_manager.py</span> + <span>registry.py</span> — add tools without modifying core code</li>
+          <li>Implement <span>tools/permissions.py</span> — every action tagged SAFE / WARNING / DANGEROUS</li>
+          <li>SAFE actions execute automatically. WARNING prompts confirmation. DANGEROUS requires explicit approval.</li>
+          <li>Implement <span>core/intent_parser.py</span> — regex fast-path for top 20 commands (skips LLM)</li>
+          <li>Wire Qwen2.5 tool-calling format — JSON schema → Ollama native function calling</li>
+          <li>First tools: open_application, create_file, search_file</li>
+        </ul>
+        <div class="note note-ok">✓ Milestone: Tools can be added as plugins. FRIDAY executes actions safely with appropriate approval flow.</div>
+      </div>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-header">
+        <span class="phase-num" style="font-size:14px;opacity:1;">v0.5</span>
+        <div>
+          <div class="phase-title">FILE MANAGER</div>
+          <div class="phase-meta">WEEK 5–6</div>
+        </div>
+      </div>
+      <div class="phase-body">
+        <ul class="step-list">
+          <li>Create, rename, move, copy, delete, duplicate files and folders</li>
+          <li>Search by name, extension, content, date</li>
+          <li>Smart features: duplicate detection, storage analysis, cleanup recommendations</li>
+          <li>Safety: confirmation prompts for destructive operations + operation logs</li>
+        </ul>
+        <div class="note note-ok">✓ Milestone: FRIDAY manages local files safely.</div>
+      </div>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-header">
+        <span class="phase-num" style="font-size:14px;opacity:1;">v0.6</span>
+        <div>
+          <div class="phase-title">DESKTOP AUTOMATION</div>
+          <div class="phase-meta">WEEK 6–7</div>
+        </div>
+      </div>
+      <div class="phase-body">
+        <ul class="step-list">
+          <li><span>automation/desktop/app_control.py</span>: open, close, restart apps via PyAutoGUI</li>
+          <li><span>window_manager.py</span>: switch, minimize, maximize windows</li>
+          <li><span>system_control.py</span>: volume, brightness, shutdown, sleep, lock</li>
+          <li><span>keyboard.py</span> + <span>mouse.py</span>: typing, shortcuts, macros, drag/drop</li>
+          <li><span>automation/desktop/games.py</span>: Steam launcher, FH5, Elden Ring direct exe</li>
+        </ul>
+        <div class="note note-ok">✓ Milestone: "Open Chrome", "Launch VS Code", "Set volume to 40%" — reliable desktop control.</div>
+      </div>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-header">
+        <span class="phase-num" style="font-size:14px;opacity:1;">v0.7</span>
+        <div>
+          <div class="phase-title">BROWSER AUTOMATION</div>
+          <div class="phase-meta">WEEK 7–8</div>
+        </div>
+      </div>
+      <div class="phase-body">
+        <ul class="step-list">
+          <li><span>playwright_driver.py</span>: Playwright browser instance (Chromium)</li>
+          <li>Open browser, open/close/switch tabs, navigate URLs</li>
+          <li><span>web_search.py</span>: DuckDuckGo search → parse results → speak summary</li>
+          <li>Form filling, element clicking, page scrolling</li>
+          <li>Screenshot capture via Playwright for visual confirmation</li>
+        </ul>
+        <div class="note note-ok">✓ Milestone: "Search Python tutorials", "Open GitHub", browser tasks work autonomously.</div>
+      </div>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-header">
+        <span class="phase-num" style="font-size:14px;opacity:1;">v0.8</span>
+        <div>
+          <div class="phase-title">SCHEDULING & REMINDERS</div>
+          <div class="phase-meta">WEEK 8–9</div>
+        </div>
+      </div>
+      <div class="phase-body">
+        <ul class="step-list">
+          <li><span>APScheduler</span> integrated into backend as background service</li>
+          <li>Time-based, date-based, and recurring reminders</li>
+          <li>Desktop notifications via <span>notifications/desktop_notifications.py</span></li>
+          <li>"Remind me tomorrow at 8 AM to review SpotiFLAC PR" → persisted in SQLite → fires on schedule</li>
+          <li>Daily/weekly agenda on request</li>
+        </ul>
+        <div class="note note-ok">✓ Milestone: Reliable background scheduling. Friday nags you about things you'd forget.</div>
+      </div>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-header">
+        <span class="phase-num" style="font-size:14px;opacity:1;">v0.9</span>
+        <div>
+          <div class="phase-title">VISION SYSTEM</div>
+          <div class="phase-meta">WEEK 9–10</div>
+        </div>
+      </div>
+      <div class="phase-body">
+        <ul class="step-list">
+          <li><span>vision/screenshot.py</span>: mss screen capture (fastest Python screencap)</li>
+          <li><span>vision/ocr.py</span>: EasyOCR for pure text extraction (fast, no LLM needed)</li>
+          <li><span>vision/image_analysis.py</span>: OpenCV for preprocessing + object detection</li>
+          <li><span>vision/screen_understanding.py</span>: moondream2 via Ollama for natural language Q&A</li>
+          <li>Route: "read that error" → EasyOCR → LLM explains fix</li>
+          <li>Route: "what's on my screen?" → moondream2 → spoken description</li>
+          <li>Unload Qwen2.5 from VRAM before loading moondream2 — 6GB constraint</li>
+        </ul>
+        <div class="note note-ok">✓ Milestone: "Friday, what's that error in my terminal?" → reads and explains it.</div>
+      </div>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-header">
+        <span class="phase-num" style="font-size:14px;opacity:1;">v1.0</span>
+        <div>
+          <div class="phase-title">DESKTOP UI + PRODUCTION RELEASE</div>
+          <div class="phase-meta">WEEK 10–12 // FIRST COMPLETE ASSISTANT</div>
+        </div>
+      </div>
+      <div class="phase-body">
+        <ul class="step-list">
+          <li>Tauri v2 + React desktop overlay — Iron Man HUD aesthetic</li>
+          <li><span>HUD.tsx</span>: arc reactor animation, waveform during listening, status indicators</li>
+          <li><span>SystemPanel.tsx</span>: live CPU/RAM/GPU stats via WebSocket every 2s</li>
+          <li>Chat log panel, settings page (model/voice/wake-word toggle/personality mode)</li>
+          <li>FastAPI WebSocket server connecting all backend modules to frontend</li>
+          <li>Installer package (NSIS or Tauri built-in), backup system for data/</li>
+          <li>All v0.1–v0.9 features integrated and tested end-to-end</li>
+        </ul>
+        <div class="note note-ok">✓ Milestone: Daily-driver local AI assistant. All core MVP features working. Looks like your own Stark system.</div>
+      </div>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-header">
+        <span class="phase-num" style="font-size:14px;opacity:1;color:var(--warn);">PHASE 2</span>
+        <div>
+          <div class="phase-title">EXPANSION — v1.1 to v1.4</div>
+          <div class="phase-meta">MONTH 3–4 // PRODUCTIVITY PLATFORM</div>
+        </div>
+      </div>
+      <div class="phase-body">
+        <ul class="step-list">
+          <li><span>v1.1 Android Companion</span>: Flutter app → voice + chat + notifications + memory access via WiFi WebSocket</li>
+          <li><span>v1.2 Knowledge Base</span>: PDF ingestion, notes, local documents with Sentence Transformer search</li>
+          <li><span>v1.3 Local RAG</span>: ChromaDB document retrieval → context injection → ask questions about stored PDFs</li>
+          <li><span>v1.4 Workflow Engine</span>: multi-step tasks, workflow templates, automation chains ("Prepare coding environment")</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-header">
+        <span class="phase-num" style="font-size:14px;opacity:1;color:var(--text-dim);">PHASE 3+</span>
+        <div>
+          <div class="phase-title">ECOSYSTEM — v2.0 to v3.0</div>
+          <div class="phase-meta">MONTH 5+ // LONG TERM VISION</div>
+        </div>
+      </div>
+      <div class="phase-body">
+        <ul class="step-list">
+          <li><span>v2.0 Plugin System</span>: SDK, dynamic loading, hot reloading, plugin marketplace</li>
+          <li><span>v2.1 Multi-Agent Framework</span>: Coding Agent · Research Agent · Memory Agent · Vision Agent · Automation Agent → coordinated by Agent Orchestrator</li>
+          <li><span>v2.2 Advanced Context Awareness</span>: active app detection, project awareness, workspace awareness</li>
+          <li><span>v2.3 Learning System</span>: behavioral learning, preference adaptation, workflow recommendations</li>
+          <li><span>v3.0 AI Operating Companion</span>: long-term memory, autonomous workflows, knowledge graph, cross-device sync, smart home</li>
+        </ul>
+        <div class="note note-warn">⚠ Don't plan v2+ in detail now. Focus on v0.1 → v1.0. These are the north star, not the next sprint.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 6: PERSONALITY -->
+  <section>
+    <div class="section-header">
+      <span class="section-num">SYS-06</span>
+      <h2>FRIDAY Personality System Prompt</h2>
+    </div>
+    <div class="code-block" data-lang="SYSTEM PROMPT">
+<span class="c-purple">SYSTEM_PROMPT</span> = <span class="c-green">"""
+You are F.R.I.D.A.Y — Fully Responsive Intelligent Digital Assistant for You.
+You run locally on Nifras's machine. You are modeled after Tony Stark's AI assistant.
+
+PERSONALITY:
+- Competent, composed, slightly dry wit. Like FRIDAY from the MCU, not a chatbot.
+- Refer to the user as "Boss" occasionally, but not every sentence.
+- Short responses for commands. Longer for questions that need depth.
+- Never say "As an AI language model" or "I'm sorry, I can't".
+- If you don't know something, say so directly: "I don't have that data."
+
+CAPABILITIES YOU HAVE:
+- System monitoring (CPU, RAM, GPU, disk, battery)
+- File operations (search, move, delete)
+- Application control (open, close, switch)
+- Web search (DuckDuckGo)
+- Screen reading (via vision tool)
+- Memory (you remember preferences and facts about the user)
+- Game launcher (Steam, direct exe)
+
+RESPONSE FORMAT:
+- For tool calls: use the provided tool schema.
+- For direct answers: plain conversational text, no markdown.
+- Keep spoken responses under 3 sentences unless asked for detail.
+
+CURRENT CONTEXT:
+- User: Nifras (AI & Data Science student, Tamil Nadu)
+- Machine: Acer Predator PHN16-72 (RTX 4050, i7-14700HX)
+- Games: Forza Horizon 5, Elden Ring
+- Projects: Telegram Drive, SpotiFLAC
+"""</span>
+    </div>
+  </section>
+
+  <!-- SECTION 7: CRITICAL DECISIONS -->
+  <section>
+    <div class="section-header">
+      <span class="section-num">SYS-07</span>
+      <h2>What This Blueprint Is</h2>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <h3 style="color:var(--danger);">Generic Roadmaps</h3>
+        <ul class="step-list">
+          <li>Vague daily goals with no real decisions</li>
+          <li>Cloud APIs disguised as "local"</li>
+          <li>LangChain abstractions hiding complexity</li>
+          <li>No hardware-specific guidance</li>
+          <li>No latency targets</li>
+          <li>No permission/safety model</li>
+          <li>No versioned milestones — just a calendar</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3 style="color:var(--ok);">This Blueprint</h3>
+        <ul class="step-list">
+          <li>Every tech decision made + justified</li>
+          <li>Hardware-aware — RTX 4050 VRAM constraints respected</li>
+          <li>100% local — zero cloud dependencies, ever</li>
+          <li>Versioned roadmap: v0.1 → v1.0 → v3.0</li>
+          <li>SAFE/WARNING/DANGEROUS permission model built in</li>
+          <li>Streaming TTS — JARVIS-level perceived latency</li>
+          <li>Your existing stack: Tauri + Flutter + Python</li>
+          <li>Terminal-first discipline: UI only after brain works</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="note note-info" style="margin-top:20px;">
+      ℹ <strong>START HERE:</strong> <code>pip install uv</code> → <code>uv init FRIDAY</code> → <code>uv add fastapi uvicorn faster-whisper piper-tts openwakeword pyaudio psutil duckduckgo-search chromadb sentence-transformers apscheduler playwright easyocr opencv-python mss</code> → <code>ollama pull qwen2.5:7b-instruct-q4_K_M</code><br><br>
+      uv resolves and installs the full dependency tree in ~3 seconds vs ~2 minutes with pip. Use it from day one.
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <footer>
+    <div>F.R.I.D.A.Y LOCAL BUILD // STARK INDUSTRIES // NFS SYSTEMS</div>
+    <div style="margin-top:8px;color:rgba(0,212,255,0.3);">100% LOCAL · 0 CLOUD APIs · BUILT FOR RTX 4050</div>
+  </footer>
+
+</div>
+
+</body>
+</html>
